@@ -1,0 +1,3 @@
+include ':ratchet'
+include ':app'
+rootProject.name = "Ratchet"

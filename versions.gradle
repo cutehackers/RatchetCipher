@@ -1,0 +1,18 @@
+
+ext.versions = [
+    'compile_sdk': 30,
+    'build_tools': "30.0.3",
+    'min_sdk': 16,
+    'target_sdk': 30,
+    'kotlin': '1.4.21',
+    'junit': '4.13.1',
+    'nav': '2.3.2'
+]
+ext.deps = [
+    'kotlin_stdlib': "org.jetbrains.kotlin:kotlin-stdlib:${versions.kotlin}",
+    'kotlin_jdk7': "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${versions.kotlin}",
+    'kotlin_jdk8': "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${versions.kotlin}",
+    'junit': "junit:junit:${versions.junit}",
+    'navigation_fragment_ktx': "androidx.navigation:navigation-fragment-ktx:${versions.nav}",
+    'navigation_ui_ktx': "androidx.navigation:navigation-ui-ktx:${versions.nav}",
+]
