@@ -162,7 +162,7 @@ void ratchet_create_seed_key_pair(
  * @return 0 if success otherwise -1
  */
 int
-ratchet_create_shared_secret_for_sender(
+ratchet_create_shared_secret_for_initiator(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
     const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES],
     const uint8_t sender_secret_key[crypto_kx_SECRETKEYBYTES],
@@ -178,7 +178,7 @@ ratchet_create_shared_secret_for_sender(
  * @return 0 if success otherwise -1
  */
 int
-ratchet_create_shared_secret_for_receiver(
+ratchet_create_shared_secret_for_recipient(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
     const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES],
     const uint8_t receiver_secret_key[crypto_kx_SECRETKEYBYTES],

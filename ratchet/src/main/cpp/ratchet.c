@@ -35,11 +35,11 @@ void test_ratchet_create_shared_secret_key() {
 
   // shared secret key
   uint8_t sk_of_alice[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_sender(sk_of_alice, alice.public_key, alice.secret_key,
+  ratchet_create_shared_secret_for_initiator(sk_of_alice, alice.public_key, alice.secret_key,
                                           bob.public_key);
 
   uint8_t sk_of_bob[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_receiver(sk_of_bob, bob.public_key, bob.secret_key,
+  ratchet_create_shared_secret_for_recipient(sk_of_bob, bob.public_key, bob.secret_key,
                                             alice.public_key);
 
   char hex[65];
@@ -67,7 +67,7 @@ void test_session_setup() {
 
   // step 2. shared secret key for sender
   uint8_t sk_sender[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_sender(
+  ratchet_create_shared_secret_for_initiator(
       sk_sender,
       sender.key_pair.public_key,
       sender.key_pair.secret_key,
@@ -78,7 +78,7 @@ void test_session_setup() {
   // receiver. receiver key_pair needs to be set beforehand
   // step 1. shared secret key
   uint8_t sk_receiver[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_receiver(
+  ratchet_create_shared_secret_for_recipient(
       sk_receiver,
       receiver.key_pair.public_key,
       receiver.key_pair.secret_key,
@@ -157,7 +157,7 @@ ratchet_create_seed_key_pair(
 }
 
 int
-ratchet_create_shared_secret_for_sender(
+ratchet_create_shared_secret_for_initiator(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
     const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES],
     const uint8_t sender_secret_key[crypto_kx_SECRETKEYBYTES],
@@ -197,7 +197,7 @@ ratchet_create_shared_secret_for_sender(
 }
 
 int
-ratchet_create_shared_secret_for_receiver(
+ratchet_create_shared_secret_for_recipient(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
     const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES],
     const uint8_t receiver_secret_key[crypto_kx_SECRETKEYBYTES],

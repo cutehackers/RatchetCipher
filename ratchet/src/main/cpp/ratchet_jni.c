@@ -115,7 +115,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForIn
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetByteArrayElements(env, shared_secret_key, 0);
 
   // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_sender(
+  ratchet_create_shared_secret_for_initiator(
       shared_secret_key_bytes,
       self_public_key_bytes,
       self_secret_key_bytes,
@@ -158,7 +158,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForRe
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetByteArrayElements(env, shared_secret_key, 0);
 
   // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_receiver(
+  ratchet_create_shared_secret_for_recipient(
       shared_secret_key_bytes,
       self_public_key_bytes,
       self_secret_key_bytes,
