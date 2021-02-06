@@ -73,7 +73,7 @@ void test_session_setup() {
       sender.key_pair.secret_key,
       receiver.key_pair.public_key);
 
-  ratchet_session_setup_for_sender(&sender, sk_sender, receiver.key_pair.public_key);
+  ratchet_session_setup_for_initiator(&sender, sk_sender, receiver.key_pair.public_key);
 
   // receiver. receiver key_pair needs to be set beforehand
   // step 1. shared secret key
@@ -84,7 +84,7 @@ void test_session_setup() {
       receiver.key_pair.secret_key,
       sender.key_pair.public_key);
 
-  ratchet_session_setup_for_receiver(&receiver, sk_receiver);
+  ratchet_session_setup_for_recipient(&receiver, sk_receiver);
 
   // encrypt
   uint8_t *encrypted = NULL;
@@ -105,15 +105,15 @@ void test_session_setup() {
 // ratchet simple key pair by sodium
 
 void
-ratchet_setup_chain_key_pair_for_sender(ratchet *ratchet, const unsigned char *other_public_key) {
+ratchet_setup_chain_key_pair_for_initiator(ratchet *ratchet, const unsigned char *other_public_key) {
   /*
    * Compute two shared keys using the server's public key and the client's secret key.
    * aliceReceiveKey will be used by the client to receive data from the server,
    * aliceSendKey will by used by the client to send data to the server.
    */
   if (crypto_kx_server_session_keys(
-      ratchet->chain_key_pair.receiver,
-      ratchet->chain_key_pair.sender,
+      ratchet->chain_key_pair.recipient,
+      ratchet->chain_key_pair.initiator,
       ratchet->key_pair.public_key,
       ratchet->key_pair.secret_key,
       other_public_key) != 0) {
@@ -123,15 +123,15 @@ ratchet_setup_chain_key_pair_for_sender(ratchet *ratchet, const unsigned char *o
 }
 
 void
-ratchet_setup_chain_key_pair_for_receiver(ratchet *ratchet, const unsigned char *other_public_key) {
+ratchet_setup_chain_key_pair_for_recipient(ratchet *ratchet, const unsigned char *other_public_key) {
   /*
    * Compute two shared keys using the server's public key and the client's secret key.
    * client_rx will be used by the client to receive data from the server,
    * client_tx will by used by the client to send data to the server.
    */
   if (crypto_kx_client_session_keys(
-      ratchet->chain_key_pair.receiver,
-      ratchet->chain_key_pair.sender,
+      ratchet->chain_key_pair.recipient,
+      ratchet->chain_key_pair.initiator,
       ratchet->key_pair.public_key,
       ratchet->key_pair.secret_key,
       other_public_key) != 0) {
@@ -159,9 +159,9 @@ ratchet_create_seed_key_pair(
 int
 ratchet_create_shared_secret_for_initiator(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t sender_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES]
+    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
+    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
+    const uint8_t recipient_public_key[crypto_kx_PUBLICKEYBYTES]
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer of at least left or right key.");
@@ -171,7 +171,7 @@ ratchet_create_shared_secret_for_initiator(
   uint8_t q[crypto_scalarmult_BYTES];
   uint8_t keys[crypto_kx_SESSIONKEYBYTES];
 
-  if (crypto_scalarmult(q, sender_secret_key, receiver_public_key) != 0) {
+  if (crypto_scalarmult(q, self_secret_key, recipient_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
@@ -182,8 +182,8 @@ ratchet_create_shared_secret_for_initiator(
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
   sodium_memzero(q, sizeof q);
 
-  crypto_generichash_update(&state, sender_public_key, crypto_kx_PUBLICKEYBYTES);
-  crypto_generichash_update(&state, receiver_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
   sodium_memzero(&state, sizeof state);
 
@@ -199,9 +199,9 @@ ratchet_create_shared_secret_for_initiator(
 int
 ratchet_create_shared_secret_for_recipient(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t receiver_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES]
+    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
+    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
+    const uint8_t initiator_public_key[crypto_kx_PUBLICKEYBYTES]
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer of at least left or right key.");
@@ -211,7 +211,7 @@ ratchet_create_shared_secret_for_recipient(
   uint8_t q[crypto_scalarmult_BYTES];
   uint8_t keys[crypto_kx_SESSIONKEYBYTES];
 
-  if (crypto_scalarmult(q, receiver_secret_key, sender_public_key) != 0) {
+  if (crypto_scalarmult(q, self_secret_key, initiator_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
@@ -222,8 +222,8 @@ ratchet_create_shared_secret_for_recipient(
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
   sodium_memzero(q, sizeof q);
 
-  crypto_generichash_update(&state, sender_public_key, crypto_kx_PUBLICKEYBYTES);
-  crypto_generichash_update(&state, receiver_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, initiator_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
   sodium_memzero(&state, sizeof state);
 
@@ -237,39 +237,39 @@ ratchet_create_shared_secret_for_recipient(
 }
 
 void
-ratchet_session_setup_for_sender(
+ratchet_session_setup_for_initiator(
     ratchet *ratchet,
-    uint8_t sk[crypto_kx_SESSIONKEYBYTES],
-    uint8_t *other_public_key
+    uint8_t *sk,
+    uint8_t *recipient_public_key
 ) {
   //memcpy(&ratchet->key_pair, key_pair, sizeof(ratchet_key_pair));
 
   // state.DHr = bob_dh_public_key
-  memcpy(ratchet->other_public_key, other_public_key, crypto_kx_PUBLICKEYBYTES);
+  memcpy(ratchet->other_public_key, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
 
   // NOTE, dh for initiator
   // dh output that's going to use as input material of KDF_RK is also performed when
   // decrypting message from a receiver side.
   uint8_t dh[crypto_kx_SESSIONKEYBYTES];
-  ratchet_sender_dh(
+  ratchet_initiator_dh(
       dh,
       ratchet->key_pair.secret_key,
       ratchet->key_pair.public_key,
-      other_public_key);
+      recipient_public_key);
 
   // state.RK, state.CKs = KDF_RK(SK, DH(state.DHs, state.DHr))
-  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.sender, sk, dh);
+  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.initiator, sk, dh);
 
   char hex[65];
   sodium_bin2hex(hex, sizeof hex, sk, crypto_kx_SESSIONKEYBYTES);
   LOGD("initiator's session setup, with shared secret key: %s", hex);
   sodium_bin2hex(hex, sizeof hex, ratchet->root_key, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> root_key: %s", hex);
-  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.sender, crypto_kx_SESSIONKEYBYTES);
+  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.initiator, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> chain_key.sender: %s", hex);
 
   // state.CKr = None
-  sodium_memzero(ratchet->chain_key_pair.receiver, crypto_kx_SESSIONKEYBYTES);
+  sodium_memzero(ratchet->chain_key_pair.recipient, crypto_kx_SESSIONKEYBYTES);
 
   ratchet->Ns = 0;
   ratchet->Nr = 0;
@@ -279,9 +279,9 @@ ratchet_session_setup_for_sender(
 }
 
 void
-ratchet_session_setup_for_receiver(
+ratchet_session_setup_for_recipient(
     ratchet *ratchet,
-    uint8_t sk[crypto_kx_SESSIONKEYBYTES]
+    uint8_t *sk
     //ratchet_key_pair *key_pair
 ) {
   //memcpy(&ratchet->key_pair, key_pair, sizeof(ratchet_key_pair));
@@ -295,8 +295,8 @@ ratchet_session_setup_for_receiver(
   sodium_bin2hex(hex, sizeof hex, ratchet->root_key, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> root_key: %s", hex);
 
-  sodium_memzero(ratchet->chain_key_pair.sender, crypto_kx_SESSIONKEYBYTES);
-  sodium_memzero(ratchet->chain_key_pair.receiver, crypto_kx_SESSIONKEYBYTES);
+  sodium_memzero(ratchet->chain_key_pair.initiator, crypto_kx_SESSIONKEYBYTES);
+  sodium_memzero(ratchet->chain_key_pair.recipient, crypto_kx_SESSIONKEYBYTES);
 
   ratchet->Ns = 0;
   ratchet->Nr = 0;
@@ -306,11 +306,11 @@ ratchet_session_setup_for_receiver(
 }
 
 int
-ratchet_sender_dh(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t remote_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_initiator_dh(
+    uint8_t *out,
+    const uint8_t *self_secret_key,
+    const uint8_t *self_public_key,
+    const uint8_t *recipient_public_key
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer");
@@ -320,7 +320,7 @@ ratchet_sender_dh(
   uint8_t q[crypto_scalarmult_BYTES];
   uint8_t keys[crypto_kx_SESSIONKEYBYTES];
 
-  if (crypto_scalarmult(q, self_secret_key, remote_public_key) != 0) {
+  if (crypto_scalarmult(q, self_secret_key, recipient_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
@@ -330,7 +330,7 @@ ratchet_sender_dh(
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
   sodium_memzero(q, sizeof q);
 
-  crypto_generichash_update(&state, remote_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
   sodium_memzero(&state, sizeof state);
@@ -351,11 +351,11 @@ ratchet_sender_dh(
 }
 
 int
-ratchet_receiver_dh(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t remote_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_recipient_dh(
+    uint8_t *out,
+    const uint8_t *self_secret_key,
+    const uint8_t *self_public_key,
+    const uint8_t *initiator_public_key
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer");
@@ -365,7 +365,7 @@ ratchet_receiver_dh(
   uint8_t q[crypto_scalarmult_BYTES];
   uint8_t keys[crypto_kx_SESSIONKEYBYTES];
 
-  if (crypto_scalarmult(q, self_secret_key, remote_public_key) != 0) {
+  if (crypto_scalarmult(q, self_secret_key, initiator_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
@@ -376,7 +376,7 @@ ratchet_receiver_dh(
   sodium_memzero(q, sizeof q);
 
   crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
-  crypto_generichash_update(&state, remote_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, initiator_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
   sodium_memzero(&state, sizeof state);
 
@@ -561,16 +561,16 @@ ratchet_encrypt(
   sodium_bin2hex(hex, sizeof hex, plain, plain_length);
   LOGD("encryption plain text: %s, size: %zu", hex, plain_length);
 
-  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.sender, crypto_kx_SESSIONKEYBYTES);
+  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.initiator, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> before chain_key_pair.sender: %s", hex);
 
   // state.CKs, mk = KDF_CK(state.CKs)
   // derive cipher keys
   // message keys(80 bytes, AES256 32 bytes, HMAC-SHA256 32 bytes, IV 16 bytes)
   ratchet_cipher_keys cipher_keys;
-  ratchet_hkdf_chain_keys(ratchet->chain_key_pair.sender, &cipher_keys);
+  ratchet_hkdf_chain_keys(ratchet->chain_key_pair.initiator, &cipher_keys);
 
-  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.sender, crypto_kx_SESSIONKEYBYTES);
+  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.initiator, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> after chain_key_pair.sender: %s", hex);
   sodium_bin2hex(hex, sizeof hex, cipher_keys.message_key, ratchet_cipher_message_key_bytes);
   LOGD("  -> after message_key: %s", hex);
@@ -709,17 +709,17 @@ ratchet_decrypt(
 
   // skipMessageKeys(state, header.n)
 
-  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.receiver, crypto_kx_SESSIONKEYBYTES);
+  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.recipient, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> before chain_key_pair.receiver: %s", hex);
 
   // state.CKr, mk = KDF_CK(state.CKr)
   // derive cipher keys
   // message keys(80 bytes, AES256 32 bytes, HMAC-SHA256 32 bytes, IV 16 bytes)
   ratchet_cipher_keys cipher_keys;
-  ratchet_hkdf_chain_keys(ratchet->chain_key_pair.receiver, &cipher_keys);
+  ratchet_hkdf_chain_keys(ratchet->chain_key_pair.recipient, &cipher_keys);
   ratchet->Nr++;
 
-  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.receiver, crypto_kx_SESSIONKEYBYTES);
+  sodium_bin2hex(hex, sizeof hex, ratchet->chain_key_pair.recipient, crypto_kx_SESSIONKEYBYTES);
   LOGD("  -> after chain_key_pair.receiver: %s", hex);
   sodium_bin2hex(hex, sizeof hex, cipher_keys.message_key, ratchet_cipher_message_key_bytes);
   LOGD("  -> after message_key: %s", hex);
@@ -776,23 +776,23 @@ ratchet_perform_double_ratchet(ratchet *ratchet, ratchet_session_header *header)
   uint8_t dh[crypto_kx_SESSIONKEYBYTES];
 
   // state.RK, state.CKr = KDF_RK(state.RK, DH(state.DHs, state.DHr))
-  ratchet_receiver_dh(
+  ratchet_recipient_dh(
       dh,
       ratchet->key_pair.secret_key,
       ratchet->key_pair.public_key,
       ratchet->other_public_key);
 
-  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.receiver, ratchet->root_key, dh);
+  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.recipient, ratchet->root_key, dh);
 
   // state.DHs = GENERATE_DH()
   ratchet_create_key_pair(&ratchet->key_pair);
 
   // state.RK, state.CKs = KDF_RK(state.RK, DH(state.DHs, state.DHr))
-  ratchet_receiver_dh(
+  ratchet_recipient_dh(
       dh,
       ratchet->key_pair.secret_key,
       ratchet->key_pair.public_key,
       ratchet->other_public_key);
 
-  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.sender, ratchet->root_key, dh);
+  ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.initiator, ratchet->root_key, dh);
 }

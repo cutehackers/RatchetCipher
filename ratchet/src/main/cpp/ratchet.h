@@ -60,8 +60,8 @@ typedef struct {
 } ratchet_key_pair;
 
 typedef struct {
-    unsigned char sender[crypto_kx_SESSIONKEYBYTES];
-    unsigned char receiver[crypto_kx_SESSIONKEYBYTES];
+    unsigned char initiator[crypto_kx_SESSIONKEYBYTES];
+    unsigned char recipient[crypto_kx_SESSIONKEYBYTES];
 } chain_key_pair;
 
 typedef struct {
@@ -156,46 +156,46 @@ void ratchet_create_seed_key_pair(
 /**
  * create a shared secret key for sender(initiator)
  * @param out
- * @param sender_public_key
- * @param sender_secret_key
- * @param receiver_public_key
+ * @param self_public_key
+ * @param self_secret_key
+ * @param recipient_public_key
  * @return 0 if success otherwise -1
  */
 int
 ratchet_create_shared_secret_for_initiator(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t sender_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES]
+    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
+    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
+    const uint8_t recipient_public_key[crypto_kx_PUBLICKEYBYTES]
 );
 
 /**
  * create a shared secret key for receiver(recipient)
  * @param out
- * @param receiver_public_key
- * @param receiver_secret_key
- * @param sender_public_key
+ * @param self_public_key
+ * @param self_secret_key
+ * @param initiator_public_key
  * @return 0 if success otherwise -1
  */
 int
 ratchet_create_shared_secret_for_recipient(
     uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t receiver_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t receiver_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t sender_public_key[crypto_kx_PUBLICKEYBYTES]
+    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
+    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
+    const uint8_t initiator_public_key[crypto_kx_PUBLICKEYBYTES]
 );
 
 /**
  * generate chain key pair with other's public key
  * @param ratchet ratchet state variables
  * @param sk shared secret key
- * @param other_public_key other's public key
+ * @param recipient_public_key other's public key
  */
 void
-ratchet_session_setup_for_sender(
+ratchet_session_setup_for_initiator(
     ratchet *ratchet,
-    uint8_t sk[crypto_kx_SESSIONKEYBYTES],
-    uint8_t *other_public_key
+    uint8_t *sk,
+    uint8_t *recipient_public_key
 );
 
 /**
@@ -204,9 +204,9 @@ ratchet_session_setup_for_sender(
  * @param sk shared secret key
  * @param key_pair dh initial key pair for
  */
-void ratchet_session_setup_for_receiver(
+void ratchet_session_setup_for_recipient(
     ratchet *ratchet,
-    uint8_t sk[crypto_kx_SESSIONKEYBYTES]
+    uint8_t *sk
 );
 
 /**
@@ -215,7 +215,7 @@ void ratchet_session_setup_for_receiver(
  * @param other_public_key
  */
 void
-ratchet_setup_chain_key_pair_for_sender(ratchet *ratchet, const unsigned char *other_public_key);
+ratchet_setup_chain_key_pair_for_initiator(ratchet *ratchet, const unsigned char *other_public_key);
 
 /**
  * creates a ratchet chain key at a time with only sodium api for receiver
@@ -223,18 +223,18 @@ ratchet_setup_chain_key_pair_for_sender(ratchet *ratchet, const unsigned char *o
  * @param other_public_key
  */
 void
-ratchet_setup_chain_key_pair_for_receiver(ratchet *ratchet, const unsigned char *other_public_key);
+ratchet_setup_chain_key_pair_for_recipient(ratchet *ratchet, const unsigned char *other_public_key);
 
 /**
  * Diffie-Hellman calculation for sender
  * state(q ‖ pk1 ‖ pk2) where pk1 == my public key, pk2 == other's public key
  */
 int
-ratchet_sender_dh(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t remote_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_initiator_dh(
+    uint8_t *out,
+    const uint8_t *self_secret_key,
+    const uint8_t *self_public_key,
+    const uint8_t *recipient_public_key
 );
 
 /**
@@ -243,15 +243,15 @@ ratchet_sender_dh(
  * @param out
  * @param self_secret_key
  * @param self_public_key
- * @param remote_public_key
+ * @param initiator_public_key
  * @return
  */
 int
-ratchet_receiver_dh(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t remote_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_recipient_dh(
+    uint8_t *out,
+    const uint8_t *self_secret_key,
+    const uint8_t *self_public_key,
+    const uint8_t *initiator_public_key
 );
 
 /**
