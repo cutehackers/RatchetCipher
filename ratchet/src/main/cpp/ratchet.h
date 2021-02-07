@@ -64,7 +64,7 @@ typedef struct {
     unsigned char recipient[crypto_kx_SESSIONKEYBYTES];
 } chain_key_pair;
 
-typedef struct {
+typedef struct ratchet {
     /**
      * public and private(secret) key pair by Diffie-Hellman
      */

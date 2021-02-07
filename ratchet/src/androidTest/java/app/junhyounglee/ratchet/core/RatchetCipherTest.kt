@@ -41,5 +41,42 @@ class RatchetCipherTest {
     (0 until RatchetCipher.SESSION_KEY_SIZE).forEach {
       assertTrue(initiatorSharedSecretKey[it] == recipientSharedSecretKey[it])
     }
+
+    initiator.destroy()
+    recipient.destroy()
+  }
+
+  @Test
+  fun testSessionSetUpForInitiator() {
+    val initiator: KeyPair = RatchetCipher.externalNewKeyPair()
+    val recipient: KeyPair = RatchetCipher.externalNewKeyPair()
+
+    val initiatorSessionState: RatchetSessionState = RatchetCipher.externalSessionSetUpForInitiator(
+      initiator,
+      recipient.publicKey
+    )
+
+    assertTrue(initiatorSessionState.isValidRef)
+
+    initiator.destroy()
+    recipient.destroy()
+    initiatorSessionState.destroy() // <- free native memory
+  }
+
+  @Test
+  fun testSessionSetUpForRecipient() {
+    val initiator: KeyPair = RatchetCipher.externalNewKeyPair()
+    val recipient: KeyPair = RatchetCipher.externalNewKeyPair()
+
+    val recipientSessionState: RatchetSessionState = RatchetCipher.externalSessionSetUpForRecipient(
+      initiator,
+      recipient.publicKey
+    )
+
+    assertTrue(recipientSessionState.isValidRef)
+
+    initiator.destroy()
+    recipient.destroy()
+    recipientSessionState.destroy() // <- free native memory
   }
 }

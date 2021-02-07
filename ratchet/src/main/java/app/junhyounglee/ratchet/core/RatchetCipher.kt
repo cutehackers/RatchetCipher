@@ -5,13 +5,10 @@ package app.junhyounglee.ratchet.core
  */
 class RatchetCipher {
 
-  init {
-    externalInit()
-  }
-
   companion object {
     init {
       System.loadLibrary("ratchet")
+      externalInit()
     }
 
     /**
@@ -46,6 +43,21 @@ class RatchetCipher {
       selfKeyPair: KeyPair,
       initiatorPublicKey: ByteArray
     ): ByteArray
+
+    @JvmStatic
+    external fun externalSessionSetUpForInitiator(
+      selfKeyPair: KeyPair,
+      recipientPublicKey: ByteArray
+    ): RatchetSessionState
+
+    @JvmStatic
+    external fun externalSessionSetUpForRecipient(
+      selfKeyPair: KeyPair,
+      initiatorPublicKey: ByteArray
+    ): RatchetSessionState
+
+    @JvmStatic
+    external fun externalFreeSessionState(externalRef: Long)
   }
 }
 
