@@ -1,5 +1,7 @@
 package app.junhyounglee.ratchet.core
 
+import java.nio.ByteBuffer
+
 /**
  * End to end encryption implementation core
  */
@@ -35,25 +37,25 @@ class RatchetCipher {
     @JvmStatic
     external fun externalNewSharedSecretKeyForInitiator(
       selfKeyPair: KeyPair,
-      recipientPublicKey: ByteArray
-    ): ByteArray
+      recipientPublicKey: ByteBuffer
+    ): ByteBuffer
 
     @JvmStatic
     external fun externalNewSharedSecretKeyForRecipient(
       selfKeyPair: KeyPair,
-      initiatorPublicKey: ByteArray
-    ): ByteArray
+      initiatorPublicKey: ByteBuffer
+    ): ByteBuffer
 
     @JvmStatic
     external fun externalSessionSetUpForInitiator(
       selfKeyPair: KeyPair,
-      recipientPublicKey: ByteArray
+      recipientPublicKey: ByteBuffer
     ): RatchetSessionState
 
     @JvmStatic
     external fun externalSessionSetUpForRecipient(
       selfKeyPair: KeyPair,
-      initiatorPublicKey: ByteArray
+      initiatorPublicKey: ByteBuffer
     ): RatchetSessionState
 
     @JvmStatic
@@ -65,6 +67,14 @@ class RatchetCipher {
 fun ByteArray.toHex(): String = StringBuffer().let { sb ->
   forEach {
     sb.append(byte2hex(it))
+  }
+  sb.toString()
+}
+
+fun ByteBuffer.toHex(): String = StringBuffer().let { sb ->
+  rewind()
+  while (hasRemaining()) {
+    sb.append(byte2hex(get()))
   }
   sb.toString()
 }

@@ -142,6 +142,7 @@ typedef struct {
  *  contained.
  */
 void ratchet_create_key_pair(ratchet_key_pair *key_pair);
+void ratchet_create_key_pair_buffer(uint8_t public_key[crypto_kx_PUBLICKEYBYTES], uint8_t secret_key[crypto_kx_SECRETKEYBYTES]);
 
 /**
  * generate DH key pair with seed

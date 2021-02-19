@@ -18,8 +18,8 @@ class RatchetCipherTest {
   @Test
   fun testNewKeyPair() {
     val keyPair: KeyPair = RatchetCipher.externalNewKeyPair()
-    assertEquals(RatchetCipher.PUBLIC_KEY_SIZE, keyPair.publicKey.size)
-    assertEquals(RatchetCipher.SECRET_KEY_SIZE, keyPair.secretKey.size)
+    assertEquals(RatchetCipher.PUBLIC_KEY_SIZE, keyPair.publicKey.capacity())
+    assertEquals(RatchetCipher.SECRET_KEY_SIZE, keyPair.secretKey.capacity())
   }
 
   @Test
@@ -36,14 +36,16 @@ class RatchetCipherTest {
       initiator.publicKey
     )
 
-    assertTrue(initiatorSharedSecretKey.size == RatchetCipher.SESSION_KEY_SIZE)
-    assertTrue(recipientSharedSecretKey.size == RatchetCipher.SESSION_KEY_SIZE)
+    assertTrue(initiatorSharedSecretKey.capacity() == RatchetCipher.SESSION_KEY_SIZE)
+    assertTrue(recipientSharedSecretKey.capacity() == RatchetCipher.SESSION_KEY_SIZE)
     (0 until RatchetCipher.SESSION_KEY_SIZE).forEach {
       assertTrue(initiatorSharedSecretKey[it] == recipientSharedSecretKey[it])
     }
 
     initiator.destroy()
     recipient.destroy()
+    JniCommon.externalFreeByteBuffer(initiatorSharedSecretKey)
+    JniCommon.externalFreeByteBuffer(recipientSharedSecretKey)
   }
 
   @Test

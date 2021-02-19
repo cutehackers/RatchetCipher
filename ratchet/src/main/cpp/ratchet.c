@@ -149,6 +149,14 @@ ratchet_create_key_pair(ratchet_key_pair *key_pair) {
 }
 
 void
+ratchet_create_key_pair_buffer(
+    uint8_t public_key[crypto_kx_PUBLICKEYBYTES],
+    uint8_t secret_key[crypto_kx_SECRETKEYBYTES]
+) {
+  crypto_kx_keypair(public_key, secret_key);
+}
+
+void
 ratchet_create_seed_key_pair(
     ratchet_key_pair *key_pair,
     const unsigned char seed[crypto_kx_SEEDBYTES]

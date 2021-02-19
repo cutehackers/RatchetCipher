@@ -1,11 +1,13 @@
 package app.junhyounglee.ratchet.core
 
-class KeyPair constructor(val publicKey: ByteArray, val secretKey: ByteArray): Destroyable {
-  operator fun component1(): ByteArray = publicKey
-  operator fun component2(): ByteArray = secretKey
+import java.nio.ByteBuffer
+
+class KeyPair constructor(val publicKey: ByteBuffer, val secretKey: ByteBuffer): Destroyable {
+  operator fun component1(): ByteBuffer = publicKey
+  operator fun component2(): ByteBuffer = secretKey
 
   override fun destroy() {
-    publicKey.fill(0)
-    secretKey.fill(0)
+    JniCommon.externalFreeByteBuffer(publicKey)
+    JniCommon.externalFreeByteBuffer(secretKey)
   }
 }
