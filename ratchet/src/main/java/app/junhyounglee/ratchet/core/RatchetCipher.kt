@@ -35,6 +35,9 @@ class RatchetCipher {
     external fun externalNewKeyPair(): KeyPair
 
     @JvmStatic
+    external fun externalKeyPair(publicKey: ByteArray, secretKey: ByteArray): KeyPair
+
+    @JvmStatic
     external fun externalNewSharedSecretKeyForInitiator(
       selfKeyPair: KeyPair,
       recipientPublicKey: ByteBuffer
@@ -60,6 +63,22 @@ class RatchetCipher {
 
     @JvmStatic
     external fun externalFreeSessionState(externalRef: Long)
+
+    /**
+     * Encrypt a plain byte array
+     * @param externalRef initiator's ratchet native object reference.
+     * @throws IllegalArgumentException if value of externalRef is invalid, this will throw.
+     */
+    @JvmStatic
+    external fun externalEncrypt(externalRef: Long, plain: ByteArray): ByteArray
+
+    /**
+     * Decrypt a encrypted byte array
+     * @param externalRef recipient's ratchet native object reference.
+     * @throws IllegalArgumentException if value of externalRef is invalid, this will throw.
+     */
+    @JvmStatic
+    external fun externalDecrypt(externalRef: Long, decrypted: ByteArray): ByteArray
   }
 }
 

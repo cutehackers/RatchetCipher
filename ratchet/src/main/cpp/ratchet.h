@@ -390,6 +390,8 @@ ratchet_decrypt(
 void
 ratchet_perform_double_ratchet(ratchet *ratchet, ratchet_session_header *header);
 
+void test_session_setup();
+
 #ifdef __cplusplus
 }
 #endif

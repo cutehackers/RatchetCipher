@@ -1,11 +1,11 @@
 package app.junhyounglee.ratchet.core
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.nio.charset.Charset
 
 @RunWith(AndroidJUnit4::class)
 class RatchetCipherTest {
@@ -71,14 +71,47 @@ class RatchetCipherTest {
     val recipient: KeyPair = RatchetCipher.externalNewKeyPair()
 
     val recipientSessionState: RatchetSessionState = RatchetCipher.externalSessionSetUpForRecipient(
-      initiator,
-      recipient.publicKey
+      recipient,
+      initiator.publicKey
     )
 
     assertTrue(recipientSessionState.isValidRef)
 
     initiator.destroy()
     recipient.destroy()
+    recipientSessionState.destroy() // <- free native memory
+  }
+
+  @Test
+  fun testRatchetCipher() {
+    val initiator: KeyPair = RatchetCipher.externalNewKeyPair()
+    val recipient: KeyPair = RatchetCipher.externalNewKeyPair()
+
+    val initiatorSessionState: RatchetSessionState = RatchetCipher.externalSessionSetUpForInitiator(
+      initiator,
+      recipient.publicKey
+    )
+    val recipientSessionState: RatchetSessionState = RatchetCipher.externalSessionSetUpForRecipient(
+      recipient,
+      initiator.publicKey
+    )
+
+    assertTrue(initiatorSessionState.isValidRef)
+
+    // TODO 지정된 public, secret key를 사용해서 KeyPair 만들어 테스트하기
+
+    val sample = "Hello World!"
+    val encrypted: ByteArray = RatchetCipher.externalEncrypt(initiatorSessionState.externalRef, plain = sample.toByteArray())
+    assertTrue(encrypted.isNotEmpty())
+    //val encryptedString = encrypted.toHex()
+
+    val plain: ByteArray = RatchetCipher.externalDecrypt(recipientSessionState.externalRef, encrypted)
+    val result = String(plain, Charset.forName("UTF8"))
+    assertEquals("Hello World!", result)
+
+    initiator.destroy()
+    recipient.destroy()
+    initiatorSessionState.destroy() // <- free native memory
     recipientSessionState.destroy() // <- free native memory
   }
 }

@@ -1,6 +1,6 @@
 package app.junhyounglee.ratchet.core
 
-data class RatchetSessionState(private val externalRef: Long): Destroyable {
+data class RatchetSessionState(internal val externalRef: Long): Destroyable {
 
   val isValidRef: Boolean = externalRef != 0L
 

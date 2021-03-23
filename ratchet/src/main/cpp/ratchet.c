@@ -97,6 +97,8 @@ void test_session_setup() {
   unsigned long long decrypted_length = 0;
   ratchet_decrypt(&receiver, (uint8_t**)&decrypted, &decrypted_length, encrypted, encrypted_length);
 
+  LOGD("test_session_setup-result: %s", decrypted);
+
   sodium_free(encrypted);
   sodium_free(decrypted);
 }
@@ -745,6 +747,7 @@ ratchet_decrypt(
 
   sodium_bin2hex(hex, sizeof hex, associated_data, crypto_auth_hmacsha256_BYTES);
   LOGD("  -> hash of message header: %s", hex);
+
 
   buffer = sodium_malloc(encrypted_text_size + 1);
 
