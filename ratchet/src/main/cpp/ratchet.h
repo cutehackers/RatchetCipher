@@ -155,35 +155,35 @@ void ratchet_create_seed_key_pair(
 );
 
 /**
- * create a shared secret key for sender(initiator)
+ * create a shared secret key for server(initiator)
  * @param out
- * @param self_public_key
- * @param self_secret_key
- * @param recipient_public_key
+ * @param server_public_key
+ * @param server_secret_key
+ * @param client_public_key
  * @return 0 if success otherwise -1
  */
 int
-ratchet_create_shared_secret_for_initiator(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t recipient_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_create_shared_secret_for_server(
+    uint8_t *out,
+    const uint8_t *server_public_key,
+    const uint8_t *server_secret_key,
+    const uint8_t *client_public_key
 );
 
 /**
- * create a shared secret key for receiver(recipient)
+ * create a shared secret key for client
  * @param out
- * @param self_public_key
- * @param self_secret_key
- * @param initiator_public_key
+ * @param client_public_key
+ * @param client_secret_key
+ * @param server_public_key
  * @return 0 if success otherwise -1
  */
 int
-ratchet_create_shared_secret_for_recipient(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t initiator_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_create_shared_secret_for_client(
+    uint8_t *out,
+    const uint8_t *client_public_key,
+    const uint8_t *client_secret_key,
+    const uint8_t *server_public_key
 );
 
 /**

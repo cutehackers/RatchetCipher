@@ -214,7 +214,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForIn
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
   // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_initiator(
+  ratchet_create_shared_secret_for_server(
       shared_secret_key_bytes,
       self_public_key_bytes,
       self_secret_key_bytes,
@@ -247,7 +247,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForRe
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
   // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_recipient(
+  ratchet_create_shared_secret_for_client(
       shared_secret_key_bytes,
       self_public_key_bytes,
       self_secret_key_bytes,
@@ -259,6 +259,9 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForRe
 
 /**
  * Generates a ratchet session state java object for initiator.
+ *
+ * TODO 아래의 함수에서 shared secret key를 생성하는 함수, ratchet_create_shared_secret_for_recipient를 외부로
+ *  분리해 낼 것.
  *
  * NOTE
  * sodium_init() method must be called before run this methods.
@@ -291,7 +294,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForInitiato
 
   // 2. shared secret
   uint8_t shared_secret_key[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_initiator(
+  ratchet_create_shared_secret_for_server(
       shared_secret_key,
       self_public_key_bytes,
       self_secret_key_bytes,
@@ -315,6 +318,21 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForInitiato
   return (*env)->NewObject(env, session_state_class, constructor, ref);
 }
 
+/**
+ * Generates a ratchet session state java object for recipient.
+ *
+ * TODO 아래의 함수에서 shared secret key를 생성하는 함수, ratchet_create_shared_secret_for_recipient를 외부로
+ *  분리해 낼 것.
+ *
+ * NOTE
+ * sodium_init() method must be called before run this methods
+ * .
+ * @param env
+ * @param clazz
+ * @param self_key_pair
+ * @param initiator_public_key
+ * @return
+ */
 JNIEXPORT jobject JNICALL
 Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForRecipient(
     JNIEnv *env,
@@ -337,7 +355,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForRecipien
 
   // 2. shared secret
   uint8_t shared_secret_key[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_recipient(
+  ratchet_create_shared_secret_for_client(
       shared_secret_key,
       self_public_key_bytes,
       self_secret_key_bytes,

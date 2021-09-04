@@ -35,12 +35,12 @@ void test_ratchet_create_shared_secret_key() {
 
   // shared secret key
   uint8_t sk_of_alice[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_initiator(sk_of_alice, alice.public_key, alice.secret_key,
+  ratchet_create_shared_secret_for_server(sk_of_alice, alice.public_key, alice.secret_key,
                                           bob.public_key);
 
   uint8_t sk_of_bob[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_recipient(sk_of_bob, bob.public_key, bob.secret_key,
-                                            alice.public_key);
+  ratchet_create_shared_secret_for_client(sk_of_bob, bob.public_key, bob.secret_key,
+                                          alice.public_key);
 
   char hex[65];
   sodium_bin2hex(hex, sizeof hex, sk_of_alice, sizeof sk_of_alice);
@@ -67,7 +67,7 @@ void test_session_setup() {
 
   // step 2. shared secret key for sender
   uint8_t sk_sender[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_initiator(
+  ratchet_create_shared_secret_for_server(
       sk_sender,
       sender.key_pair.public_key,
       sender.key_pair.secret_key,
@@ -78,7 +78,7 @@ void test_session_setup() {
   // receiver. receiver key_pair needs to be set beforehand
   // step 1. shared secret key
   uint8_t sk_receiver[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_recipient(
+  ratchet_create_shared_secret_for_client(
       sk_receiver,
       receiver.key_pair.public_key,
       receiver.key_pair.secret_key,
@@ -166,12 +166,20 @@ ratchet_create_seed_key_pair(
   crypto_kx_seed_keypair(key_pair->public_key, key_pair->secret_key, seed);
 }
 
+/**
+ * Generate a shared secret key for server based on diffie-hellman calculation
+ * @param out shared secret key
+ * @param server_public_key
+ * @param server_secret_key
+ * @param remote_public_key
+ * @return 0 if success otherwise -1
+ */
 int
-ratchet_create_shared_secret_for_initiator(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t recipient_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_create_shared_secret_for_server(
+    uint8_t *out,
+    const uint8_t *server_public_key,
+    const uint8_t *server_secret_key,
+    const uint8_t *client_public_key
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer of at least left or right key.");
@@ -179,39 +187,73 @@ ratchet_create_shared_secret_for_initiator(
   }
 
   uint8_t q[crypto_scalarmult_BYTES];
-  uint8_t keys[crypto_kx_SESSIONKEYBYTES];
+  /*
+   * shared secret key bytes
+   *  crypto_generichash_BYTES_MIN: 16 bytes
+   *  crypto_generichash_BYTES: 32 bytes
+   *  crypto_generichash_BYTES_MAX: 64 bytes
+   */
+  uint8_t keys[crypto_generichash_BYTES_MAX];
 
-  if (crypto_scalarmult(q, self_secret_key, recipient_public_key) != 0) {
+  /*
+   * Alice: qᴬ mod p
+   * Bob: qᴮ mod p
+   * AB: qᴬᴮ mod p
+   *
+   * crypto_scalarmult(q, n, p)
+   *  q: shared secret
+   *   represents the X coordinate of a point on the curve. As a result, the number of possible keys
+   *   is limited to the group size (≈2^252), which is smaller than the key space.
+   *
+   *   For this reason, and to mitigate subtle attacks due to the fact many (p, n) pairs produce the
+   *   same result, using the output of the multiplication q directly as a shared key is not
+   *   recommended.
+   *
+   *   A better way to compute a shared key is h(q ‖ pk1 ‖ pk2), with pk1 and pk2 being the public
+   *   keys.
+   *
+   *  n: self_secret_key
+   *  p: remote_public_key
+   */
+  if (crypto_scalarmult(q, server_secret_key, client_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
 
   crypto_generichash_state state;
 
+  // shared_secrete_key = hash(q || server_public_key || client_public_key)
   crypto_generichash_init(&state, NULL, 0U, sizeof keys);
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
-  sodium_memzero(q, sizeof q);
-
-  crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
-  crypto_generichash_update(&state, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, server_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, client_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
-  sodium_memzero(&state, sizeof state);
 
-  int i;
-  for (i = 0; i < crypto_kx_SESSIONKEYBYTES; i++) {
-    out[i] = keys[i];
-  }
+  // final hash size is crypto_generichash_BYTES_MAX, 64 bytes
+  memcpy(out, keys, crypto_kx_SESSIONKEYBYTES);
+
+  // clean up
+  sodium_memzero(q, sizeof q);
+  sodium_memzero(&state, sizeof state);
   sodium_memzero(keys, sizeof keys);
 
   return 0;
 }
 
+/**
+ * Generate a shared secret key for client based on diffie-hellman calculation
+ * @param out shared secret key
+ * @param server_public_key
+ * @param server_secret_key
+ * @param remote_public_key
+ * @return 0 if success otherwise -1
+ */
 int
-ratchet_create_shared_secret_for_recipient(
-    uint8_t out[crypto_kx_SESSIONKEYBYTES],
-    const uint8_t self_public_key[crypto_kx_PUBLICKEYBYTES],
-    const uint8_t self_secret_key[crypto_kx_SECRETKEYBYTES],
-    const uint8_t initiator_public_key[crypto_kx_PUBLICKEYBYTES]
+ratchet_create_shared_secret_for_client(
+    uint8_t *out,
+    const uint8_t *client_public_key,
+    const uint8_t *client_secret_key,
+    const uint8_t *server_public_key
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer of at least left or right key.");
@@ -219,28 +261,54 @@ ratchet_create_shared_secret_for_recipient(
   }
 
   uint8_t q[crypto_scalarmult_BYTES];
-  uint8_t keys[crypto_kx_SESSIONKEYBYTES];
+  /*
+   * shared secret key bytes
+   *  crypto_generichash_BYTES_MIN: 16 bytes
+   *  crypto_generichash_BYTES: 32 bytes
+   *  crypto_generichash_BYTES_MAX: 64 bytes
+   */
+  uint8_t keys[crypto_generichash_BYTES_MAX];
 
-  if (crypto_scalarmult(q, self_secret_key, initiator_public_key) != 0) {
+  /*
+   * Alice: qᴬ mod p
+   * Bob: qᴮ mod p
+   * AB: qᴬᴮ mod p
+   *
+   * crypto_scalarmult(q, n, p)
+   *  q: shared secret
+   *   represents the X coordinate of a point on the curve. As a result, the number of possible keys
+   *   is limited to the group size (≈2^252), which is smaller than the key space.
+   *
+   *   For this reason, and to mitigate subtle attacks due to the fact many (p, n) pairs produce the
+   *   same result, using the output of the multiplication q directly as a shared key is not
+   *   recommended.
+   *
+   *   A better way to compute a shared key is h(q ‖ pk1 ‖ pk2), with pk1 and pk2 being the public
+   *   keys.
+   *
+   *  n: self_secret_key
+   *  p: remote_public_key
+   */
+  if (crypto_scalarmult(q, client_secret_key, server_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
 
   crypto_generichash_state state;
 
+  // shared_secrete_key = hash(q || server_public_key || client_public_key)
   crypto_generichash_init(&state, NULL, 0U, sizeof keys);
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
-  sodium_memzero(q, sizeof q);
-
-  crypto_generichash_update(&state, initiator_public_key, crypto_kx_PUBLICKEYBYTES);
-  crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, server_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, client_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
-  sodium_memzero(&state, sizeof state);
 
-  int i;
-  for (i = 0; i < crypto_kx_SESSIONKEYBYTES; i++) {
-    out[i] = keys[i];
-  }
+  // final hash size is crypto_generichash_BYTES_MAX, 64 bytes
+  memcpy(out, keys, crypto_kx_SESSIONKEYBYTES);
+
+  // clean up
+  sodium_memzero(q, sizeof q);
+  sodium_memzero(&state, sizeof state);
   sodium_memzero(keys, sizeof keys);
 
   return 0;
@@ -315,12 +383,21 @@ ratchet_session_setup_for_recipient(
   //skipped
 }
 
+/**
+ * Generates a new Diffie-Hellman key pair. This function is recommended to generate a key pair
+ * based on the Curve25519 or Curve448 elliptic curves.
+ * @param out
+ * @param self_secret_key
+ * @param self_public_key
+ * @param remote_public_key
+ * @return
+ */
 int
 ratchet_initiator_dh(
     uint8_t *out,
     const uint8_t *self_secret_key,
     const uint8_t *self_public_key,
-    const uint8_t *recipient_public_key
+    const uint8_t *remote_public_key
 ) {
   if (out == NULL) {
     LOGE("dh calculation requires valid out buffer");
@@ -330,7 +407,7 @@ ratchet_initiator_dh(
   uint8_t q[crypto_scalarmult_BYTES];
   uint8_t keys[crypto_kx_SESSIONKEYBYTES];
 
-  if (crypto_scalarmult(q, self_secret_key, recipient_public_key) != 0) {
+  if (crypto_scalarmult(q, self_secret_key, remote_public_key) != 0) {
     LOGE("error while performing diffie-hellman calculation.");
     return -1;
   }
@@ -340,7 +417,7 @@ ratchet_initiator_dh(
   crypto_generichash_update(&state, q, crypto_scalarmult_BYTES);
   sodium_memzero(q, sizeof q);
 
-  crypto_generichash_update(&state, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
+  crypto_generichash_update(&state, remote_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_update(&state, self_public_key, crypto_kx_PUBLICKEYBYTES);
   crypto_generichash_final(&state, keys, sizeof keys);
   sodium_memzero(&state, sizeof state);
