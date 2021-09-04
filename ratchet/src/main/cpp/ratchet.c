@@ -200,6 +200,8 @@ ratchet_create_shared_secret_for_server(
    * Bob: qᴮ mod p
    * AB: qᴬᴮ mod p
    *
+   * X25519 (ECDH over Curve25519) RFC7748(https://www.rfc-editor.org/rfc/rfc7748.txt)
+   *
    * crypto_scalarmult(q, n, p)
    *  q: shared secret
    *   represents the X coordinate of a point on the curve. As a result, the number of possible keys
@@ -273,6 +275,8 @@ ratchet_create_shared_secret_for_client(
    * Alice: qᴬ mod p
    * Bob: qᴮ mod p
    * AB: qᴬᴮ mod p
+   *
+   * X25519 (ECDH over Curve25519) RFC7748(https://www.rfc-editor.org/rfc/rfc7748.txt)
    *
    * crypto_scalarmult(q, n, p)
    *  q: shared secret
