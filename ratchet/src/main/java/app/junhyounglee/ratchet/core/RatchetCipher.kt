@@ -34,31 +34,36 @@ class RatchetCipher {
     @JvmStatic
     external fun externalNewKeyPair(): KeyPair
 
+    /**
+     * @exception InvalidKeyException would be thrown if key size of either [publicKey] or [secretKey] is not
+     * appropriate
+     */
     @JvmStatic
     external fun externalKeyPair(publicKey: ByteArray, secretKey: ByteArray): KeyPair
 
     @JvmStatic
-    external fun externalNewSharedSecretKeyForInitiator(
-      selfKeyPair: KeyPair,
-      recipientPublicKey: ByteBuffer
+    external fun externalNewSharedSecretKeyForServer(
+      serverKeyPair: KeyPair,
+      clientPublicKey: ByteBuffer
     ): ByteBuffer
 
     @JvmStatic
-    external fun externalNewSharedSecretKeyForRecipient(
-      selfKeyPair: KeyPair,
-      initiatorPublicKey: ByteBuffer
+    external fun externalNewSharedSecretKeyForClient(
+      clientKeyPair: KeyPair,
+      serverPublicKey: ByteBuffer
     ): ByteBuffer
 
     @JvmStatic
-    external fun externalSessionSetUpForInitiator(
-      selfKeyPair: KeyPair,
-      recipientPublicKey: ByteBuffer
+    external fun externalSessionSetUpForServer(
+      sharedSecretKey: ByteBuffer,
+      serverKeyPair: KeyPair,
+      clientPublicKey: ByteBuffer
     ): RatchetSessionState
 
     @JvmStatic
-    external fun externalSessionSetUpForRecipient(
-      selfKeyPair: KeyPair,
-      initiatorPublicKey: ByteBuffer
+    external fun externalSessionSetUpForClient(
+      sharedSecretKey: ByteBuffer,
+      clientKeyPair: KeyPair
     ): RatchetSessionState
 
     @JvmStatic

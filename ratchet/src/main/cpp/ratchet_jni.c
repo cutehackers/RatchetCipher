@@ -171,6 +171,12 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalKeyPair(
     return NULL;
   }
 
+  jsize pk_length = (*env)->GetArrayLength(env, public_key);
+  jsize sk_length = (*env)->GetArrayLength(env, secret_key);
+  if (pk_length != crypto_kx_PUBLICKEYBYTES || sk_length != crypto_kx_SECRETKEYBYTES) {
+    (*env)->ThrowNew(env, (*env)->FindClass(env, "app/junhyounglee/ratchet/exception/InvalidKeyException"), "Invalid key size.");
+  }
+
   uint8_t* public_key_bytes = (*env)->GetDirectBufferAddress(env, public_key_buffer);
   uint8_t* secret_key_bytes = (*env)->GetDirectBufferAddress(env, secret_key_buffer);
 
@@ -192,120 +198,113 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalKeyPair(
 }
 
 JNIEXPORT jobject JNICALL
-Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForInitiator(
+Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForServer(
     JNIEnv *env,
     __unused jclass clazz,
-    jobject self_key_pair,
-    jobject recipient_public_key
+    jobject server_key_pair,
+    jobject client_public_key
 ) {
   // KeyPair object
   jclass key_pair_class = Jni_get_class(env, "app/junhyounglee/ratchet/core/KeyPair");
   jfieldID field_public_key = Jni_get_object_field_id(env, key_pair_class, "publicKey", "Ljava/nio/ByteBuffer;");
   jfieldID field_secret_key = Jni_get_object_field_id(env, key_pair_class, "secretKey", "Ljava/nio/ByteBuffer;");
 
-  jobject self_public_key = Jni_get_object_field(env, self_key_pair, field_public_key);
-  jobject self_secret_key = Jni_get_object_field(env, self_key_pair, field_secret_key);
-  uint8_t* self_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_public_key);
-  uint8_t* self_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_secret_key);
-  uint8_t* recipient_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, recipient_public_key);
+  jobject server_public_key = Jni_get_object_field(env, server_key_pair, field_public_key);
+  jobject server_secret_key = Jni_get_object_field(env, server_key_pair, field_secret_key);
+  uint8_t* server_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, server_public_key);
+  uint8_t* server_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, server_secret_key);
+  uint8_t* client_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_public_key);
 
-  // byte buffer for (initiator's shared secret key)
+  // byte buffer for (server's shared secret key)
   jobject shared_secret_key = Jni_allocate_direct_byte_buffer(env, crypto_kx_SESSIONKEYBYTES);
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
-  // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_server(
+  if (ratchet_create_shared_secret_for_server(
       shared_secret_key_bytes,
-      self_public_key_bytes,
-      self_secret_key_bytes,
-      recipient_public_key_bytes
-  );
+      server_public_key_bytes,
+      server_secret_key_bytes,
+      client_public_key_bytes
+  ) < 0) {
+    // error while generating shared secret for client
+  }
 
   return shared_secret_key;
 }
 
-JNIEXPORT jbyteArray JNICALL
-Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForRecipient(
+JNIEXPORT jobject JNICALL
+Java_app_junhyounglee_ratchet_core_RatchetCipher_externalNewSharedSecretKeyForClient(
     JNIEnv *env,
     __unused jclass clazz,
-    jobject self_key_pair,
-    jobject initiator_public_key
+    jobject client_key_pair,
+    jobject server_public_key
 ) {
   // KeyPair object
   jclass key_pair_class = Jni_get_class(env, "app/junhyounglee/ratchet/core/KeyPair");
   jfieldID field_public_key = Jni_get_object_field_id(env, key_pair_class, "publicKey", "Ljava/nio/ByteBuffer;");
   jfieldID field_secret_key = Jni_get_object_field_id(env, key_pair_class, "secretKey", "Ljava/nio/ByteBuffer;");
 
-  jobject self_public_key = Jni_get_object_field(env, self_key_pair, field_public_key);
-  jobject self_secret_key = Jni_get_object_field(env, self_key_pair, field_secret_key);
-  uint8_t* self_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_public_key);
-  uint8_t* self_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_secret_key);
-  uint8_t* initiator_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, initiator_public_key);
+  jobject client_public_key = Jni_get_object_field(env, client_key_pair, field_public_key);
+  jobject client_secret_key = Jni_get_object_field(env, client_key_pair, field_secret_key);
+  uint8_t* client_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_public_key);
+  uint8_t* client_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_secret_key);
+  uint8_t* server_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, server_public_key);
 
-  // byte buffer for (recipient's shared secret key)
+  // byte buffer for (client's shared secret key)
   jobject shared_secret_key = Jni_allocate_direct_byte_buffer(env, crypto_kx_SESSIONKEYBYTES);
   uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
-  // TODO 아래의 함수가 크래쉬가 나지 않는다는 것을 보장해야한다. 리턴값으로 예외처리를 할 것.
-  ratchet_create_shared_secret_for_client(
+  if (ratchet_create_shared_secret_for_client(
       shared_secret_key_bytes,
-      self_public_key_bytes,
-      self_secret_key_bytes,
-      initiator_public_key_bytes
-  );
+      client_public_key_bytes,
+      client_secret_key_bytes,
+      server_public_key_bytes
+  ) < 0) {
+    // error while generating shared secret for client
+  }
 
   return shared_secret_key;
 }
 
 /**
- * Generates a ratchet session state java object for initiator.
- *
- * TODO 아래의 함수에서 shared secret key를 생성하는 함수, ratchet_create_shared_secret_for_recipient를 외부로
- *  분리해 낼 것.
+ * Generates a ratchet session state java object for a server.
  *
  * NOTE
  * sodium_init() method must be called before run this methods.
  *
  * @param env
  * @param clazz
- * @param self_key_pair initiator's key pair object
- * @param recipient_public_key
+ * @param shared_secret_key shared secret key
+ * @param server_key_pair server's key pair object
+ * @param client_public_key
  * @return RatchetSessionState java instance that has native ratchet state.
  */
 JNIEXPORT jobject JNICALL
-Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForInitiator(
+Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForServer(
     JNIEnv *env,
     __unused jclass clazz,
-    jobject self_key_pair,
-    jobject recipient_public_key
+    jobject shared_secret_key,
+    jobject server_key_pair,
+    jobject client_public_key
 ) {
-  //sodium_init();
-
   // 1. self_key_pair -> key_pair
   jclass key_pair_class = Jni_get_class(env, "app/junhyounglee/ratchet/core/KeyPair");
   jfieldID field_public_key = Jni_get_object_field_id(env, key_pair_class, "publicKey", "Ljava/nio/ByteBuffer;");
   jfieldID field_secret_key = Jni_get_object_field_id(env, key_pair_class, "secretKey", "Ljava/nio/ByteBuffer;");
 
-  jobject self_public_key = Jni_get_object_field(env, self_key_pair, field_public_key);
-  jobject self_secret_key = Jni_get_object_field(env, self_key_pair, field_secret_key);
-  uint8_t* self_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_public_key);
-  uint8_t* self_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_secret_key);
-  uint8_t* recipient_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, recipient_public_key);
+  jobject server_public_key = Jni_get_object_field(env, server_key_pair, field_public_key);
+  jobject server_secret_key = Jni_get_object_field(env, server_key_pair, field_secret_key);
+  uint8_t* server_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, server_public_key);
+  uint8_t* server_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, server_secret_key);
+  uint8_t* client_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_public_key);
 
   // 2. shared secret
-  uint8_t shared_secret_key[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_server(
-      shared_secret_key,
-      self_public_key_bytes,
-      self_secret_key_bytes,
-      recipient_public_key_bytes
-  );
+  uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
   // 3. generate ratchet session state
   ratchet* ratchet = sodium_malloc(sizeof(struct ratchet));
-  memcpy(ratchet->key_pair.public_key, self_public_key_bytes, crypto_kx_PUBLICKEYBYTES);
-  memcpy(ratchet->key_pair.secret_key, self_secret_key_bytes, crypto_kx_SECRETKEYBYTES);
-  ratchet_session_setup_for_initiator(ratchet, shared_secret_key, recipient_public_key_bytes);
+  memcpy(ratchet->key_pair.public_key, server_public_key_bytes, crypto_kx_PUBLICKEYBYTES);
+  memcpy(ratchet->key_pair.secret_key, server_secret_key_bytes, crypto_kx_SECRETKEYBYTES);
+  ratchet_session_setup_for_server(ratchet, shared_secret_key_bytes, client_public_key_bytes);
 
   // 4. create RatchetSessionState object with native state object as construct parameter.
   jclass session_state_class = Jni_get_class(
@@ -319,53 +318,42 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForInitiato
 }
 
 /**
- * Generates a ratchet session state java object for recipient.
- *
- * TODO 아래의 함수에서 shared secret key를 생성하는 함수, ratchet_create_shared_secret_for_recipient를 외부로
- *  분리해 낼 것.
+ * Generates a ratchet session state java object for a client.
  *
  * NOTE
  * sodium_init() method must be called before run this methods
- * .
+ *
  * @param env
  * @param clazz
- * @param self_key_pair
- * @param initiator_public_key
+ * @param shared_secret_key shared secret key
+ * @param client_key_pair a self key pair for client
  * @return
  */
 JNIEXPORT jobject JNICALL
-Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForRecipient(
+Java_app_junhyounglee_ratchet_core_RatchetCipher_externalSessionSetUpForClient(
     JNIEnv *env,
     __unused jclass clazz,
-    jobject self_key_pair,
-    jobject initiator_public_key
+    jobject shared_secret_key,
+    jobject client_key_pair
 ) {
-  //NOTE sodium_init() is ahead of running this method
-
   // 1. self_key_pair -> key_pair
   jclass key_pair_class = Jni_get_class(env, "app/junhyounglee/ratchet/core/KeyPair");
   jfieldID field_public_key = Jni_get_object_field_id(env, key_pair_class, "publicKey", "Ljava/nio/ByteBuffer;");
   jfieldID field_secret_key = Jni_get_object_field_id(env, key_pair_class, "secretKey", "Ljava/nio/ByteBuffer;");
 
-  jobject self_public_key = Jni_get_object_field(env, self_key_pair, field_public_key);
-  jobject self_secret_key = Jni_get_object_field(env, self_key_pair, field_secret_key);
-  uint8_t* self_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_public_key);
-  uint8_t* self_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, self_secret_key);
-  uint8_t* initiator_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, initiator_public_key);
+  jobject client_public_key = Jni_get_object_field(env, client_key_pair, field_public_key);
+  jobject client_secret_key = Jni_get_object_field(env, client_key_pair, field_secret_key);
+  uint8_t* client_public_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_public_key);
+  uint8_t* client_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, client_secret_key);
 
   // 2. shared secret
-  uint8_t shared_secret_key[crypto_kx_SESSIONKEYBYTES];
-  ratchet_create_shared_secret_for_client(
-      shared_secret_key,
-      self_public_key_bytes,
-      self_secret_key_bytes,
-      initiator_public_key_bytes);
+  uint8_t* shared_secret_key_bytes = (uint8_t*)(*env)->GetDirectBufferAddress(env, shared_secret_key);
 
   // 3. generate ratchet session state
   ratchet* ratchet = sodium_malloc(sizeof(struct ratchet));
-  memcpy(ratchet->key_pair.public_key, self_public_key_bytes, crypto_kx_PUBLICKEYBYTES);
-  memcpy(ratchet->key_pair.secret_key, self_secret_key_bytes, crypto_kx_SECRETKEYBYTES);
-  ratchet_session_setup_for_recipient(ratchet, shared_secret_key);
+  memcpy(ratchet->key_pair.public_key, client_public_key_bytes, crypto_kx_PUBLICKEYBYTES);
+  memcpy(ratchet->key_pair.secret_key, client_secret_key_bytes, crypto_kx_SECRETKEYBYTES);
+  ratchet_session_setup_for_client(ratchet, shared_secret_key_bytes);
 
   // 4. create RatchetSessionState object with native state object as construct parameter.
   jclass session_state_class = Jni_get_class(
@@ -394,13 +382,13 @@ JNIEXPORT jbyteArray JNICALL
 Java_app_junhyounglee_ratchet_core_RatchetCipher_externalEncrypt(
     JNIEnv *env,
     jclass clazz,
-    jlong external_initiator_ref,
+    jlong external_server_ref,
     jbyteArray plain
 ) {
-  if (!external_initiator_ref) {
+  if (!external_server_ref) {
     (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/IllegalArgumentException"), "Invalid native ratchet object.");
   }
-  ratchet* initiator = (ratchet*) external_initiator_ref;
+  ratchet* server = (ratchet*) external_server_ref;
 
   jsize length = (*env)->GetArrayLength(env, plain);
   if (length < 1) {
@@ -413,7 +401,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalEncrypt(
   const uint8_t* buffer = (const uint8_t*)(*env)->GetByteArrayElements(env, plain, 0);
   uint8_t *encrypted = NULL;
   unsigned long long encrypted_length = 0;
-  ratchet_encrypt(initiator, &encrypted, &encrypted_length, buffer, length);
+  ratchet_encrypt(server, &encrypted, &encrypted_length, buffer, length);
 
   jbyteArray java_encrypted = (*env)->NewByteArray(env, encrypted_length);
   (*env)->SetByteArrayRegion(
@@ -432,13 +420,13 @@ JNIEXPORT jbyteArray JNICALL
 Java_app_junhyounglee_ratchet_core_RatchetCipher_externalDecrypt(
     JNIEnv *env,
     __unused jclass clazz,
-    jlong external_recipient_ref,
+    jlong external_client_ref,
     jbyteArray java_encrypted
 ) {
-  if (!external_recipient_ref) {
+  if (!external_client_ref) {
     (*env)->ThrowNew(env, (*env)->FindClass(env, "java/lang/IllegalArgumentException"), "Invalid native ratchet object.");
   }
-  ratchet* recipient = (ratchet*) external_recipient_ref;
+  ratchet* client = (ratchet*) external_client_ref;
 
   jsize encrypted_length = (*env)->GetArrayLength(env, java_encrypted);
   if (encrypted_length < 1) {
@@ -450,7 +438,7 @@ Java_app_junhyounglee_ratchet_core_RatchetCipher_externalDecrypt(
   const uint8_t* encrypted = (const uint8_t*)(*env)->GetByteArrayElements(env, java_encrypted, 0);
   char *decrypted = NULL;
   unsigned long long decrypted_length = 0;
-  ratchet_decrypt(recipient, (uint8_t**)&decrypted, &decrypted_length, encrypted, encrypted_length);
+  ratchet_decrypt(client, (uint8_t**)&decrypted, &decrypted_length, encrypted, encrypted_length);
 
   jbyteArray java_plain = (*env)->NewByteArray(env, decrypted_length);
   (*env)->SetByteArrayRegion(

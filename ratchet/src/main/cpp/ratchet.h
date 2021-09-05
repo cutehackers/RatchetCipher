@@ -190,22 +190,21 @@ ratchet_create_shared_secret_for_client(
  * generate chain key pair with other's public key
  * @param ratchet ratchet state variables
  * @param sk shared secret key
- * @param recipient_public_key other's public key
+ * @param client_public_key other's public key
  */
 void
-ratchet_session_setup_for_initiator(
+ratchet_session_setup_for_server(
     ratchet *ratchet,
     uint8_t *sk,
-    uint8_t *recipient_public_key
+    uint8_t *client_public_key
 );
 
 /**
  * initialize ratchet session state for receiver
  * @param ratchet state variables
- * @param sk shared secret key
- * @param key_pair dh initial key pair for
+ * @param sk a client's shared secret key
  */
-void ratchet_session_setup_for_recipient(
+void ratchet_session_setup_for_client(
     ratchet *ratchet,
     uint8_t *sk
 );

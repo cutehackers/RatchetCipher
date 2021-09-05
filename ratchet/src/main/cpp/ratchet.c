@@ -73,7 +73,7 @@ void test_session_setup() {
       sender.key_pair.secret_key,
       receiver.key_pair.public_key);
 
-  ratchet_session_setup_for_initiator(&sender, sk_sender, receiver.key_pair.public_key);
+  ratchet_session_setup_for_server(&sender, sk_sender, receiver.key_pair.public_key);
 
   // receiver. receiver key_pair needs to be set beforehand
   // step 1. shared secret key
@@ -84,7 +84,7 @@ void test_session_setup() {
       receiver.key_pair.secret_key,
       sender.key_pair.public_key);
 
-  ratchet_session_setup_for_recipient(&receiver, sk_receiver);
+  ratchet_session_setup_for_client(&receiver, sk_receiver);
 
   // encrypt
   uint8_t *encrypted = NULL;
@@ -319,15 +319,13 @@ ratchet_create_shared_secret_for_client(
 }
 
 void
-ratchet_session_setup_for_initiator(
+ratchet_session_setup_for_server(
     ratchet *ratchet,
     uint8_t *sk,
-    uint8_t *recipient_public_key
+    uint8_t *client_public_key
 ) {
-  //memcpy(&ratchet->key_pair, key_pair, sizeof(ratchet_key_pair));
-
   // state.DHr = bob_dh_public_key
-  memcpy(ratchet->other_public_key, recipient_public_key, crypto_kx_PUBLICKEYBYTES);
+  memcpy(ratchet->other_public_key, client_public_key, crypto_kx_PUBLICKEYBYTES);
 
   // NOTE, dh for initiator
   // dh output that's going to use as input material of KDF_RK is also performed when
@@ -337,7 +335,7 @@ ratchet_session_setup_for_initiator(
       dh,
       ratchet->key_pair.secret_key,
       ratchet->key_pair.public_key,
-      recipient_public_key);
+      client_public_key);
 
   // state.RK, state.CKs = KDF_RK(SK, DH(state.DHs, state.DHr))
   ratchet_hkdf_root_keys(ratchet->root_key, ratchet->chain_key_pair.initiator, sk, dh);
@@ -361,13 +359,13 @@ ratchet_session_setup_for_initiator(
 }
 
 void
-ratchet_session_setup_for_recipient(
+ratchet_session_setup_for_client(
     ratchet *ratchet,
     uint8_t *sk
-    //ratchet_key_pair *key_pair
 ) {
-  //memcpy(&ratchet->key_pair, key_pair, sizeof(ratchet_key_pair));
+  // state.DHr = None
   sodium_memzero(ratchet->other_public_key, crypto_kx_PUBLICKEYBYTES);
+
   // state.RK = SK
   memcpy(ratchet->root_key, sk, crypto_kx_SESSIONKEYBYTES);
 
